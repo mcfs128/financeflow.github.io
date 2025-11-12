@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PiggyBank Pal - Finance Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #2C415C;
+        }
+        .quadrant {
+            border-radius: 0.75rem;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            min-height: 300px;
+            height: 100%;
+            overflow: hidden;
+            border: 5px solid #BB897D;
+            background-color: #D7B2A9;
+        }
+        .transaction-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            max-height: 400px;
+            min-height: 300px;
+            background-color: #9BABB8;
+        }
+        .input-expanded {
+            max-height: 300px;
+            transition: max-height 0.3s ease-in-out;
+        }
+        .input-collapsed {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
+        }
+        /* Custom scrollbar */
+        .transaction-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        .transaction-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .transaction-list::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .transaction-list::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!--
+    HOW TO RUN:
+    1. Save this file as finance-dashboard.html
+    2. Double-click to open in Chrome, Edge, or Firefox
+    3. All data is saved locally in your browser (localStorage)
+    4. To reset, click "Reset Data" or clear browser storage
+    -->
+    <div class="grid-container">
+        <!-- Upper Left Quadrant - Balance & Inputs -->
+        <div class="quadrant">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-blue-800">Total Balance</h2>
+                <div class="flex items-center space-x-2">
+                    <select id="accountSelect" class="px-3 py-1 bg-white border border-blue-300 rounded-md text-sm shadow-sm focus:outline-none focus:border-blue-500">
+                        <option value="default">Main Account</option>
+                    </select>
+                    <button id="addAccountBtn" class="px-2 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition">+ Add</button>
+                </div>
+            </div>
+            <div id="balanceDisplay" class="text-4xl font-bold mb-6 text-blue-900">₱0.00</div>
+
+            <div class="flex space-x-4 mb-4">
+                <div class="flex-1">
+                    <div class="relative">
+                        <input id="expenseInput" type="number" placeholder="Enter expense..." class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:border-red-500" inputmode="decimal">
+                    </div>
+                    <div id="expenseDetails" class="input-collapsed bg-white p-3 mt-2 rounded-md shadow-sm border border-red-100">
+                        <input id="expenseDesc" type="text" placeholder="Description" class="w-full px-2 py-1 mb-2 border border-gray-300 rounded-md">
+                        <select id="expenseCategory" class="w-full px-2 py-1 mb-2 border border-gray-300 rounded-md">
+                            <option value="Groceries">Groceries</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Bills">Bills</option>
+                            <option value="Others">Others</option>
+                        </select>
+                        <input id="expenseDate" type="date" class="w-full px-2 py-1 mb-2 border border-gray-300 rounded-md">
+                        <button id="submitExpense" class="w-full py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition">Add Expense</button>
+                    </div>
+                </div>
+                <div class="flex-1">
+                    <div class="relative">
+                        <input id="incomeInput" type="number" placeholder="Enter income..." class="w-full px-3 py-2 border-2 border-green-300 rounded-md focus:outline-none focus:border-green-500" inputmode="decimal">
+                    </div>
+                    <div id="incomeDetails" class="input-collapsed bg-white p-3 mt-2 rounded-md shadow-sm border border-green-100">
+                        <input id="incomeDesc" type="text" placeholder="Description" class="w-full px-2 py-1 mb-2 border border-gray-300 rounded-md">
+                        <select id="incomeCategory" class="w-full px-2 py-1 mb-2 border border-gray-300 rounded-md">
+                            <option value="Salary">Salary</option>
+                            <option value="Business">Business</option>
+                            <option value="Gift">Gift</option>
+                            <option value="Others">Others</option>
+                        </select>
+                        <input id="incomeDate" type="date" class="w-full px-2 py-1 mb-2 border border-gray-300 rounded-md">
+                        <button id="submitIncome" class="w-full py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition">Add Income</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upper Right Quadrant - Balance Trend -->
+        <div class="quadrant">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-xl font-bold text-gray-800">Balance Trend</h2>
+                <select id="timeRange" class="px-2 py-1 bg-white border border-gray-300 rounded-md text-sm shadow-sm focus:outline-none focus:border-gray-500">
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="year">This Year</option>
+                    <option value="all" selected>All Time</option>
+                </select>
+            </div>
+            <div class="flex-1" style="min-height: 300px; height: 350px; border: 5px solid white; border-radius: 3px;">
+            <canvas id="lineChart" class="w-full h-full"></canvas>
+</div>
+</div>
+
+        <!-- Lower Left Quadrant - Pie Charts -->
+        <div class="quadrant">
+            <div class="flex justify-between h-full space-x-4">
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-center text-red-600 mb-2">Expenses</h3>
+                        <div class="flex-1" style="min-height: 250px; height: 300px;">
+                        <canvas id="expensePie" class="w-full h-full"></canvas>
+</div>
+</div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-center text-green-600 mb-2">Income</h3>
+                        <div class="flex-1" style="min-height: 250px; height: 300px;">
+                        <canvas id="incomePie" class="w-full h-full"></canvas>
+</div>
+</div>
+            </div>
+        </div>
+
+        <!-- Lower Right Quadrant - Transaction History -->
+        <div class="quadrant">
+            <h2 class="text-xl font-bold text-gray-800 mb-3">Transaction History</h2>
+            <div class="transaction-list">
+                <table class="w-full">
+                    <thead>
+                        <tr class="text-left text-sm text-gray-600 border-b">
+                            <th class="pb-2">Amount</th>
+                            <th class="pb-2">Type</th>
+                            <th class="pb-2">Description</th>
+                            <th class="pb-2">Category</th>
+                            <th class="pb-2">Date</th>
+                            <th class="pb-2">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionTable">
+                        <!-- Transactions will be added here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-2 flex justify-end">
+                <button id="resetDataBtn" class="px-3 py-1 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 transition">Reset Data</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize data structure
+        let accounts = {
+            'default': {
+                balance: 0,
+                transactions: [],
+                incomeCategories: ['Salary', 'Business', 'Gift', 'Others'],
+                expenseCategories: ['Groceries', 'Shopping', 'Bills', 'Others']
+            }
+        };
+        let currentAccount = 'default';
+
+        // DOM Elements
+        const accountSelect = document.getElementById('accountSelect');
+        const addAccountBtn = document.getElementById('addAccountBtn');
+        const balanceDisplay = document.getElementById('balanceDisplay');
+        const expenseInput = document.getElementById('expenseInput');
+        const incomeInput = document.getElementById('incomeInput');
+        const expenseDetails = document.getElementById('expenseDetails');
+        const incomeDetails = document.getElementById('incomeDetails');
+        const submitExpense = document.getElementById('submitExpense');
+        const submitIncome = document.getElementById('submitIncome');
+        const transactionTable = document.getElementById('transactionTable');
+        const resetDataBtn = document.getElementById('resetDataBtn');
+        const timeRange = document.getElementById('timeRange');
+
+        // Chart instances
+        let lineChart, expensePieChart, incomePieChart;
+
+        // Initialize the app
+        function initApp() {
+            loadData();
+            setupEventListeners();
+            updateUI();
+            initCharts();
+        }
+
+        // Load data from localStorage
+        function loadData() {
+            const savedData = localStorage.getItem('financeDashboardData');
+            if (savedData) {
+                accounts = JSON.parse(savedData);
+                updateAccountDropdown();
+            }
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('financeDashboardData', JSON.stringify(accounts));
+        }
+
+        // Update account dropdown
+        function updateAccountDropdown() {
+            accountSelect.innerHTML = '';
+            Object.keys(accounts).forEach(account => {
+                const option = document.createElement('option');
+                option.value = account;
+                option.textContent = account === 'default' ? 'Main Account' : account;
+                accountSelect.appendChild(option);
+            });
+            accountSelect.value = currentAccount;
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Account selection
+            accountSelect.addEventListener('change', (e) => {
+                currentAccount = e.target.value;
+                updateUI();
+            });
+
+            // Add account
+            addAccountBtn.addEventListener('click', () => {
+                const accountName = prompt('Enter account name:');
+                if (accountName && !accounts[accountName]) {
+                    accounts[accountName] = {
+                        balance: 0,
+                        transactions: [],
+                        incomeCategories: ['Salary', 'Business', 'Gift', 'Others'],
+                        expenseCategories: ['Groceries', 'Shopping', 'Bills', 'Others']
+                    };
+                    saveData();
+                    updateAccountDropdown();
+                    accountSelect.value = accountName;
+                    currentAccount = accountName;
+                    updateUI();
+                } else if (accountName) {
+                    alert('Account name already exists!');
+                }
+            });
+
+            // Expense input
+            expenseInput.addEventListener('focus', () => {
+                incomeDetails.classList.add('input-collapsed');
+                expenseDetails.classList.remove('input-collapsed');
+                expenseDetails.classList.add('input-expanded');
+            });
+
+            // Income input
+            incomeInput.addEventListener('focus', () => {
+                expenseDetails.classList.add('input-collapsed');
+                incomeDetails.classList.remove('input-collapsed');
+                incomeDetails.classList.add('input-expanded');
+            });
+
+            // Submit expense
+            submitExpense.addEventListener('click', addTransaction.bind(null, 'expense'));
+
+            // Submit income
+            submitIncome.addEventListener('click', addTransaction.bind(null, 'income'));
+
+            // Reset data
+            resetDataBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to reset all data? This cannot be undone.')) {
+                    localStorage.removeItem('financeDashboardData');
+                    accounts = {
+                        'default': {
+                            balance: 0,
+                            transactions: [],
+                            incomeCategories: ['Salary', 'Business', 'Gift', 'Others'],
+                            expenseCategories: ['Groceries', 'Shopping', 'Bills', 'Others']
+                        }
+                    };
+                    currentAccount = 'default';
+                    saveData();
+                    updateUI();
+                }
+            });
+
+            // Time range change
+            timeRange.addEventListener('change', updateCharts);
+        }
+
+        // Add transaction
+        function addTransaction(type) {
+            const inputElement = type === 'expense' ? expenseInput : incomeInput;
+            const descElement = type === 'expense' ? document.getElementById('expenseDesc') : document.getElementById('incomeDesc');
+            const categoryElement = type === 'expense' ? document.getElementById('expenseCategory') : document.getElementById('incomeCategory');
+            const dateElement = type === 'expense' ? document.getElementById('expenseDate') : document.getElementById('incomeDate');
+
+            const amount = parseFloat(inputElement.value);
+            const description = descElement.value.trim();
+            let category = categoryElement.value;
+            let date = dateElement.value;
+
+            // Validation
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+
+            if (!description) {
+                alert('Please enter a description');
+                return;
+            }
+
+            // Set default date to today if empty
+            if (!date) {
+                const today = new Date();
+                date = today.toISOString().split('T')[0];
+            }
+
+            // Check if category is new
+            if (category === 'add-new') {
+                const newCategory = prompt(`Enter new ${type} category:`);
+                if (newCategory) {
+                    category = newCategory;
+                    if (type === 'expense') {
+                        accounts[currentAccount].expenseCategories.push(newCategory);
+                    } else {
+                        accounts[currentAccount].incomeCategories.push(newCategory);
+                    }
+                    saveData();
+                    updateCategoryDropdowns();
+                } else {
+                    return;
+                }
+            }
+
+            // Create transaction
+            const transaction = {
+                id: Date.now(),
+                type,
+                amount,
+                description,
+                category,
+                date,
+                timestamp: new Date(date).getTime()
+            };
+
+            // Update account
+            if (type === 'expense') {
+                accounts[currentAccount].balance -= amount;
+            } else {
+                accounts[currentAccount].balance += amount;
+            }
+            accounts[currentAccount].transactions.push(transaction);
+
+            // Sort transactions by date (newest first)
+            accounts[currentAccount].transactions.sort((a, b) => b.timestamp - a.timestamp);
+
+            // Save and update UI
+            saveData();
+            updateUI();
+
+            // Clear inputs
+            inputElement.value = '';
+            descElement.value = '';
+            dateElement.value = '';
+            if (type === 'expense') {
+                expenseDetails.classList.remove('input-expanded');
+                expenseDetails.classList.add('input-collapsed');
+            } else {
+                incomeDetails.classList.remove('input-expanded');
+                incomeDetails.classList.add('input-collapsed');
+            }
+        }
+
+        // Update category dropdowns
+        function updateCategoryDropdowns() {
+            const expenseCategory = document.getElementById('expenseCategory');
+            const incomeCategory = document.getElementById('incomeCategory');
+
+            // Update expense categories
+            expenseCategory.innerHTML = '';
+            accounts[currentAccount].expenseCategories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                expenseCategory.appendChild(option);
+            });
+            const newExpenseOption = document.createElement('option');
+            newExpenseOption.value = 'add-new';
+            newExpenseOption.textContent = '+ Add new';
+            expenseCategory.appendChild(newExpenseOption);
+
+            // Update income categories
+            incomeCategory.innerHTML = '';
+            accounts[currentAccount].incomeCategories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                incomeCategory.appendChild(option);
+            });
+            const newIncomeOption = document.createElement('option');
+            newIncomeOption.value = 'add-new';
+            newIncomeOption.textContent = '+ Add new';
+            incomeCategory.appendChild(newIncomeOption);
+        }
+
+        // Update UI
+        function updateUI() {
+            // Update balance
+            balanceDisplay.textContent = `₱${accounts[currentAccount].balance.toFixed(2)}`;
+
+            // Update transaction table
+            updateTransactionTable();
+
+            // Update category dropdowns
+            updateCategoryDropdowns();
+
+            // Update charts
+            updateCharts();
+        }
+
+        // Update transaction table
+        function updateTransactionTable() {
+            transactionTable.innerHTML = '';
+            accounts[currentAccount].transactions.forEach(transaction => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-200 hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="py-2 ${transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'}">
+                        ${transaction.type === 'expense' ? '-' : ''}₱${transaction.amount.toFixed(2)}
+                    </td>
+                    <td class="py-2 capitalize">${transaction.type}</td>
+                    <td class="py-2">${transaction.description}</td>
+                    <td class="py-2">${transaction.category}</td>
+                    <td class="py-2">${formatDate(transaction.date)}</td>
+                    <td class="py-2">
+                        <button class="edit-btn px-2 py-1 bg-blue-500 text-white rounded text-xs mr-1" data-id="${transaction.id}">Edit</button>
+                        <button class="delete-btn px-2 py-1 bg-red-500 text-white rounded text-xs" data-id="${transaction.id}">Delete</button>
+                    </td>
+                `;
+                transactionTable.appendChild(row);
+            });
+
+            // Add event listeners to edit and delete buttons
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = parseInt(e.target.getAttribute('data-id'));
+                    editTransaction(id);
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = parseInt(e.target.getAttribute('data-id'));
+                    deleteTransaction(id);
+                });
+            });
+        }
+
+        // Format date for display
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString(undefined, options);
+        }
+
+        // Edit transaction
+        function editTransaction(id) {
+            const transaction = accounts[currentAccount].transactions.find(t => t.id === id);
+            if (!transaction) return;
+
+            const newAmount = parseFloat(prompt('Enter new amount:', transaction.amount));
+            if (isNaN(newAmount) || newAmount <= 0) {
+                alert('Invalid amount');
+                return;
+            }
+
+            const newDescription = prompt('Enter new description:', transaction.description);
+            if (!newDescription) {
+                alert('Description cannot be empty');
+                return;
+            }
+
+            let newCategory = prompt('Enter new category:', transaction.category);
+            if (!newCategory) {
+                alert('Category cannot be empty');
+                return;
+            }
+
+            // Check if category is new
+            if (transaction.type === 'expense' && !accounts[currentAccount].expenseCategories.includes(newCategory)) {
+                accounts[currentAccount].expenseCategories.push(newCategory);
+                saveData();
+                updateCategoryDropdowns();
+            } else if (transaction.type === 'income' && !accounts[currentAccount].incomeCategories.includes(newCategory)) {
+                accounts[currentAccount].incomeCategories.push(newCategory);
+                saveData();
+                updateCategoryDropdowns();
+            }
+
+            // Update balance
+            if (transaction.type === 'expense') {
+                accounts[currentAccount].balance += transaction.amount; // Remove old amount
+                accounts[currentAccount].balance -= newAmount; // Add new amount
+            } else {
+                accounts[currentAccount].balance -= transaction.amount; // Remove old amount
+                accounts[currentAccount].balance += newAmount; // Add new amount
+            }
+
+            // Update transaction
+            transaction.amount = newAmount;
+            transaction.description = newDescription;
+            transaction.category = newCategory;
+
+            // Save and update UI
+            saveData();
+            updateUI();
+        }
+
+        // Delete transaction
+        function deleteTransaction(id) {
+            if (!confirm('Are you sure you want to delete this transaction?')) return;
+
+            const index = accounts[currentAccount].transactions.findIndex(t => t.id === id);
+            if (index === -1) return;
+
+            const transaction = accounts[currentAccount].transactions[index];
+
+            // Update balance
+            if (transaction.type === 'expense') {
+                accounts[currentAccount].balance += transaction.amount;
+            } else {
+                accounts[currentAccount].balance -= transaction.amount;
+            }
+
+            // Remove transaction
+            accounts[currentAccount].transactions.splice(index, 1);
+
+            // Save and update UI
+            saveData();
+            updateUI();
+        }
+// Update line chart
+        function updateLineChart() {
+            const range = timeRange.value;
+            let filteredTransactions = [...accounts[currentAccount].transactions];
+
+            // Filter by date range
+            if (range !== 'all') {
+                const now = new Date();
+                let startDate;
+
+                if (range === 'week') {
+                    startDate = new Date(now.setDate(now.getDate() - 7));
+                } else if (range === 'month') {
+                    startDate = new Date(now.setMonth(now.getMonth() - 1));
+                } else if (range === 'year') {
+                    startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+                }
+
+                filteredTransactions = filteredTransactions.filter(t => {
+                    return new Date(t.date) >= startDate;
+                });
+            }
+
+            // Sort by date
+            filteredTransactions.sort((a, b) => a.timestamp - b.timestamp);
+
+            // Calculate running balance
+            let runningBalance = 0;
+            const balanceData = [];
+            const dateLabels = [];
+
+            filteredTransactions.forEach(transaction => {
+                if (transaction.type === 'income') {
+                    runningBalance += transaction.amount;
+                } else {
+                    runningBalance -= transaction.amount;
+                }
+                balanceData.push(runningBalance);
+                dateLabels.push(formatDate(transaction.date));
+            });
+
+            // Update chart
+            lineChart.data.labels = dateLabels;
+            lineChart.data.datasets[0].data = balanceData;
+            lineChart.update();
+        }
+
+        // Update pie charts
+        function updatePieCharts() {
+            const expenses = accounts[currentAccount].transactions.filter(t => t.type === 'expense');
+            const income = accounts[currentAccount].transactions.filter(t => t.type === 'income');
+
+            // Expense pie chart
+            const expenseCategories = {};
+            expenses.forEach(expense => {
+                if (expenseCategories[expense.category]) {
+                    expenseCategories[expense.category] += expense.amount;
+                } else {
+                    expenseCategories[expense.category] = expense.amount;
+                }
+            });
+
+            expensePieChart.data.labels = Object.keys(expenseCategories);
+            expensePieChart.data.datasets[0].data = Object.values(expenseCategories);
+            expensePieChart.update();
+
+            // Income pie chart
+            const incomeCategories = {};
+            income.forEach(inc => {
+                if (incomeCategories[inc.category]) {
+                    incomeCategories[inc.category] += inc.amount;
+                } else {
+                    incomeCategories[inc.category] = inc.amount;
+                }
+            });
+
+            incomePieChart.data.labels = Object.keys(incomeCategories);
+            incomePieChart.data.datasets[0].data = Object.values(incomeCategories);
+            incomePieChart.update();
+        }
+
+        // Set default date to today
+        document.getElementById('expenseDate').valueAsDate = new Date();
+        document.getElementById('incomeDate').valueAsDate = new Date();
+        // Initialize the app after everything loads
+        window.addEventListener('load', () => {
+            // Ensure Chart.js is loaded
+            if (typeof Chart !== 'undefined') {
+                initApp();
+            } else {
+                console.error('Chart.js not loaded');
+                // Retry after short delay
+                setTimeout(() => {
+                    if (typeof Chart !== 'undefined') {
+                        initApp();
+                    } else {
+                        alert('Failed to load charts. Please refresh the page.');
+                    }
+                }, 500);
+            }
+        });
+
+        // Add error handling for charts
+        function updateCharts() {
+            try {
+                updateLineChart();
+                updatePieCharts();
+            } catch (error) {
+                console.error('Chart update error:', error);
+                // Attempt to reinitialize charts on error
+                initCharts();
+            }
+        }
+
+        function initCharts() {
+            try {
+                // Destroy existing charts if they exist
+                if (lineChart) lineChart.destroy();
+                if (expensePieChart) expensePieChart.destroy();
+                if (incomePieChart) incomePieChart.destroy();
+
+                // Line chart for balance trend
+                const lineCtx = document.getElementById('lineChart').getContext('2d');
+                lineChart = new Chart(lineCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Balance',
+                            data: [],
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.1,
+                            fill: true,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ₱${context.raw.toFixed(2)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₱' + value.toFixed(2);
+                                    }
+                                }
+                            },
+                            x: { grid: { display: false } }
+                        },
+                        interaction: {
+                            mode: 'nearest',
+                            axis: 'x',
+                            intersect: false
+                        }
+                    }
+                });
+
+                // Pie chart for expenses
+                const expensePieCtx = document.getElementById('expensePie').getContext('2d');
+                expensePieChart = new Chart(expensePieCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.7)',
+                                'rgba(255, 159, 64, 0.7)',
+                                'rgba(255, 205, 86, 0.7)',
+                                'rgba(75, 192, 192, 0.7)',
+                                'rgba(54, 162, 235, 0.7)',
+                                'rgba(153, 102, 255, 0.7)',
+                                'rgba(201, 203, 207, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(255, 159, 64, 1)',
+                                'rgba(255, 205, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(153, 102, 255, 1)',
+                                'rgba(201, 203, 207, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = Math.round((value / total) * 100);
+                                        return `${label}: ₱${value.toFixed(2)} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Pie chart for income
+                const incomePieCtx = document.getElementById('incomePie').getContext('2d');
+                incomePieChart = new Chart(incomePieCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: [
+                                'rgba(75, 192, 192, 0.7)',
+                                'rgba(54, 162, 235, 0.7)',
+                                'rgba(153, 102, 255, 0.7)',
+                                'rgba(201, 203, 207, 0.7)',
+                                'rgba(255, 99, 132, 0.7)',
+                                'rgba(255, 159, 64, 0.7)',
+                                'rgba(255, 205, 86, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(153, 102, 255, 1)',
+                                'rgba(201, 203, 207, 1)',
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(255, 159, 64, 1)',
+                                'rgba(255, 205, 86, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = Math.round((value / total) * 100);
+                                        return `${label}: ₱${value.toFixed(2)} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                updateCharts();
+            } catch (error) {
+                console.error('Chart initialization error:', error);
+                alert('Failed to initialize charts. Please refresh the page.');
+            }
+        }
+</script>
+</body>
+</html>
